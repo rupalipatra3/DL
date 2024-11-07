@@ -1,0 +1,140 @@
+# ------------------------- Install necessary libraries -------------------------
+!pip install tensorflow==2.12.0   # Install the specified version of TensorFlow
+
+# ------------------------- Import necessary libraries -------------------------
+import tensorflow as tf
+from tensorflow import keras
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import random
+%matplotlib inline  # Inline plotting for Jupyter Notebooks
+
+# ------------------------- Load the training and testing data (MNIST) -------------------------
+# MNIST -> Modified National Institute of Standards and Technology (Handwritten digits dataset)
+
+# Option 1: If dataset is locally stored
+train_data_dir = 'FILE_PATH/mnist-jpg/test'  # Path to the test data
+test_data_dir = 'FILE_PATH/mnist-jpg/train'   # Path to the training data
+
+# (x_train, y_train), (x_test, y_test)  # Replace this with actual data loading code if local files
+
+# Option 2: If dataset is directly loaded via TensorFlow
+mnist = tf.keras.datasets.mnist  # Load the MNIST dataset from TensorFlow's dataset module
+
+# Load data into training and testing sets
+(x_train, y_train), (x_test, y_test) = mnist.load_data() 
+
+# ------------------------- Check dataset size -------------------------
+len(x_train)  # Check the number of training samples (Should be 60,000)
+len(y_train)  # The length of y_train will match x_train (60,000 labels)
+
+len(x_test)   # Check the number of testing samples (Should be 10,000)
+len(y_test)   # The length of y_test will match x_test (10,000 labels)
+
+# ------------------------- Examine first image in the dataset -------------------------
+x_train.shape  # Shape of the training data (60000, 28, 28) - 60,000 images of size 28x28 pixels
+
+# Display the first training image matrix
+x_train[0]  # First image in the training set, a 28x28 matrix representing pixel intensities
+
+# ------------------------- Visualize the first image -------------------------
+# Plot the first image from the training set to visually inspect it
+plt.matshow(x_train[0])  # Visualizes the first image using matplotlib (with a matrix color map)
+
+# Plot with inverted colors for better contrast (Optional)
+plt.imshow(-x_train[0], cmap="gray")  # Negates the image for better contrast in some cases
+
+# ------------------------- Normalize the images -------------------------
+# Normalize pixel values to a range of 0 to 1 by dividing by 255 (the max intensity value)
+x_train = x_train / 255.0  # Normalizing training data
+x_test = x_test / 255.0    # Normalizing testing data
+
+# ------------------------- Check normalized image -------------------------
+x_train[0]  # Check the normalized value of the first training image (values between 0 and 1)
+
+# ------------------------- Create a Neural Network Model -------------------------
+# Define a simple feedforward neural network using Keras' Sequential API
+
+model = keras.Sequential([
+    keras.layers.Flatten(input_shape=(28, 28)),  # Flatten the 28x28 image into a 1D array of 784 features
+    keras.layers.Dense(128, activation="relu"),  # Fully connected hidden layer with 128 neurons and ReLU activation
+    keras.layers.Dense(10, activation="softmax") # Output layer with 10 neurons (one for each digit 0-9)
+])
+
+# Print a summary of the model architecture
+model.summary()
+
+# Explanation of Activation Functions:
+# ReLU (Rectified Linear Unit) is used here for the hidden layer as it's more effective than Sigmoid in many cases.
+# Softmax activation in the output layer converts the raw output to probabilities, where each output is between 0 and 1.
+
+# ------------------------- Compile the Model -------------------------
+# Specify the optimizer, loss function, and metrics for evaluation
+
+model.compile(
+    optimizer="sgd",  # Use Stochastic Gradient Descent (SGD) optimizer for training
+    loss="sparse_categorical_crossentropy",  # Loss function suitable for multi-class classification
+    metrics=['accuracy']  # Track accuracy during training and evaluation
+)
+
+# ------------------------- Train the Model -------------------------
+# Train the model on the training data for 10 epochs with validation on the test set
+
+history = model.fit(x_train, y_train, validation_data=(x_test, y_test), epochs=10)
+
+# ------------------------- Evaluate the Model -------------------------
+# Evaluate the trained model on the test data to check its performance
+
+test_loss, test_acc = model.evaluate(x_test, y_test)
+print("Loss=%.3f" % test_loss)  # Print the loss on the test set
+print("Accuracy=%.3f" % test_acc)  # Print the accuracy on the test set
+
+# ------------------------- Make Predictions on New Data -------------------------
+# Randomly select an image from the test set and visualize it
+
+n = random.randint(0, 9999)  # Generate a random index to select an image from the test set
+plt.imshow(x_test[n])  # Display the image at the randomly selected index
+plt.show()  # Show the image
+
+# Use the model to predict the label of the image
+predicted_value = model.predict(x_test)  # Model makes a prediction for all test images
+
+# Print the predicted label for the selected image
+print("Handwritten number in the image is= %d" % np.argmax(predicted_value[n]))  # The predicted label corresponds to the highest probability
+
+# ------------------------- Plot Accuracy and Loss Graphs -------------------------
+# Access the training history (accuracy, loss, etc.)
+
+history.history.keys()  # Check the keys in the history object (should contain 'accuracy', 'val_accuracy', 'loss', and 'val_loss')
+
+# Plot the training and validation accuracy over epochs
+plt.plot(history.history['accuracy'])  # Plot training accuracy
+plt.plot(history.history['val_accuracy'])  # Plot validation accuracy
+plt.title('Model Accuracy')  # Title for the accuracy plot
+plt.ylabel('Accuracy')  # Y-axis label
+plt.xlabel('Epoch')  # X-axis label
+plt.legend(['Train', 'Validation'], loc='upper left')  # Legend to differentiate between training and validation accuracy
+plt.show()  # Display the accuracy plot
+
+# Plot the training and validation loss over epochs
+plt.plot(history.history['loss'])  # Plot training loss
+plt.plot(history.history['val_loss'])  # Plot validation loss
+plt.title('Model Loss')  # Title for the loss plot
+plt.ylabel('Loss')  # Y-axis label
+plt.xlabel('Epoch')  # X-axis label
+plt.legend(['Train', 'Validation'], loc='upper left')  # Legend to differentiate between training and validation loss
+plt.show()  # Display the loss plot
+
+# ------------------------- Plot Combined Accuracy and Loss -------------------------
+# Plot both accuracy and loss for both training and validation data on the same graph
+
+plt.plot(history.history['accuracy'])  # Plot training accuracy
+plt.plot(history.history['val_accuracy'])  # Plot validation accuracy
+plt.plot(history.history['loss'])  # Plot training loss
+plt.plot(history.history['val_loss'])  # Plot validation loss
+plt.title('Training Loss and Accuracy')  # Title for the combined plot
+plt.ylabel('Accuracy / Loss')  # Y-axis label for both accuracy and loss
+plt.xlabel('Epoch')  # X-axis label
+plt.legend(['Accuracy', 'Val Accuracy', 'Loss', 'Val Loss'], loc='upper left')  # Legend for all lines
+plt.show()  # Display the combined plot
