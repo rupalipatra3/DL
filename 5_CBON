@@ -1,0 +1,170 @@
+# Importing necessary libraries
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib as mpl
+import matplotlib.pylab as pylab
+import numpy as np
+%matplotlib inline
+
+# Data Preparation: Text Preprocessing
+import re
+
+# Define the sentences
+sentences = """We are about to study the idea of a computational process.
+Computational processes are abstract beings that inhabit computers.
+As they evolve, processes manipulate other abstract things called data.
+The evolution of a process is directed by a pattern of rules
+called a program. People create programs to direct processes. In effect,
+we conjure the spirits of the computer with our spells."""
+
+# Clean the data
+# Remove special characters (keeping only alphanumeric characters and spaces)
+sentences = re.sub('[^A-Za-z0-9]+', ' ', sentences)
+
+# Remove single-letter words (for more meaningful context)
+sentences = re.sub(r'(?:^| )\w(?:$| )', ' ', sentences).strip()
+
+# Convert all text to lowercase
+sentences = sentences.lower()
+
+# Create a list of words from the sentences
+words = sentences.split()
+
+# Create a vocabulary set to remove duplicates
+vocab = set(words)
+
+# Get the vocabulary size (number of unique words)
+vocab_size = len(vocab)
+
+# Define embedding dimensions and context size for Word2Vec-like approach
+embed_dim = 10  # The size of the vector representing each word
+context_size = 2  # Number of words on each side of the target word
+
+# Mapping from words to indices and vice versa
+word_to_ix = {word: i for i, word in enumerate(vocab)}
+ix_to_word = {i: word for i, word in enumerate(vocab)}
+
+# Prepare training data for the model
+# For each word, get the context words (2 before and 2 after) and target word
+data = []
+for i in range(2, len(words) - 2):  # Ensure we don't go out of bounds for context
+    context = [words[i - 2], words[i - 1], words[i + 1], words[i + 2]]  # 2 words before and 2 after
+    target = words[i]  # The target word
+    data.append((context, target))  # Add to data as a tuple of context and target
+
+print(data[:5])  # Print the first 5 training samples to verify
+
+# Initialize embeddings randomly for each word in the vocabulary
+embeddings = np.random.random_sample((vocab_size, embed_dim))
+
+# Linear transformation function for calculating predictions
+def linear(m, theta):
+    w = theta  # The parameter matrix (weights)
+    return m.dot(w)  # Multiply the input (context vector) with the weights to get output
+
+# Log softmax function to compute log of softmax probabilities
+def log_softmax(x):
+    e_x = np.exp(x - np.max(x))  # Subtract max for numerical stability
+    return np.log(e_x / e_x.sum())  # Compute the log of the softmax probabilities
+
+# Negative log likelihood loss function (cross-entropy loss)
+def NLLLoss(logs, targets):
+    out = logs[range(len(targets)), targets]  # Get the log probabilities for the target words
+    return -out.sum() / len(out)  # Compute the average negative log likelihood
+
+# Softmax cross-entropy with logits function
+def log_softmax_crossentropy_with_logits(logits, target):
+    out = np.zeros_like(logits)
+    out[np.arange(len(logits)), target] = 1  # One-hot encoding for target word
+    softmax = np.exp(logits) / np.exp(logits).sum(axis=-1, keepdims=True)  # Compute softmax probabilities
+    return (- out + softmax) / logits.shape[0]  # Return the cross-entropy loss for each batch
+
+# Forward pass function to calculate predictions
+def forward(context_idxs, theta):
+    m = embeddings[context_idxs].reshape(1, -1)  # Reshape the context embeddings into a single vector
+    n = linear(m, theta)  # Apply the linear transformation to get raw scores
+    o = log_softmax(n)  # Apply log softmax to get log-probabilities of each word
+
+    return m, n, o  # Return the embeddings, raw scores, and log-probabilities
+
+# Backward pass to compute gradients
+def backward(preds, theta, target_idxs):
+    m, n, o = preds  # Unpack predictions
+
+    # Compute gradient using cross-entropy with logits
+    dlog = log_softmax_crossentropy_with_logits(n, target_idxs)
+
+    # Compute the gradient of the weights
+    dw = m.T.dot(dlog)
+
+    return dw  # Return the gradient with respect to the weights
+
+# Optimization step to update the weights using the gradient and learning rate
+def optimize(theta, grad, lr=0.03):
+    theta -= grad * lr  # Update the weights with the computed gradient
+    return theta  # Return the updated weights
+
+# Training loop
+# Initialize the weights randomly
+theta = np.random.uniform(-1, 1, (2 * context_size * embed_dim, vocab_size))
+
+epoch_losses = {}  # Dictionary to track loss for each epoch
+
+# Training for 80 epochs
+for epoch in range(80):
+    losses = []  # List to track losses in the current epoch
+
+    # Iterate through each training example (context-target pair)
+    for context, target in data:
+        context_idxs = np.array([word_to_ix[w] for w in context])  # Convert context words to indices
+        preds = forward(context_idxs, theta)  # Get the predictions
+
+        target_idxs = np.array([word_to_ix[target]])  # Convert the target word to index
+        loss = NLLLoss(preds[-1], target_idxs)  # Compute the loss for this prediction
+
+        losses.append(loss)  # Store the loss
+
+        # Compute the gradient and update the weights
+        grad = backward(preds, theta, target_idxs)
+        theta = optimize(theta, grad, lr=0.03)  # Apply optimization step
+
+    epoch_losses[epoch] = losses  # Store the losses for this epoch
+
+# Plot the loss across epochs
+ix = np.arange(0, 80)  # Create an array of epoch numbers
+
+# Create a plot for loss over epochs
+fig = plt.figure()
+fig.suptitle('Epoch/Losses', fontsize=20)
+plt.plot(ix, [epoch_losses[i][0] for i in ix])  # Plot loss for each epoch
+plt.xlabel('Epochs', fontsize=12)
+plt.ylabel('Losses', fontsize=12)
+
+# Predict function to generate the most likely target word given a context
+def predict(words):
+    context_idxs = np.array([word_to_ix[w] for w in words])  # Convert context to indices
+    preds = forward(context_idxs, theta)  # Get predictions for context
+    word = ix_to_word[np.argmax(preds[-1])]  # Get the word with the highest probability
+
+    return word  # Return the predicted word
+
+# Example prediction
+predict(['we', 'are', 'to', 'study'])  # Predict the target word for this context
+
+# Accuracy function to evaluate the model
+def accuracy():
+    wrong = 0  # Counter for wrong predictions
+
+    # Iterate over all training data and check if the prediction is correct
+    for context, target in data:
+        if(predict(context) != target):  # If predicted word is wrong
+            wrong += 1
+
+    # Return the accuracy as 1 minus the fraction of wrong predictions
+    return (1 - (wrong / len(data)))
+
+# Compute and print the accuracy
+accuracy()
+
+# Example prediction for a different context
+predict(['processes', 'manipulate', 'things', 'study'])  # Predict the target word
