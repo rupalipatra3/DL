@@ -1,0 +1,60 @@
+2. FeedForward MNIST {mnist.load_data() method}
+
+#a. installation libraries
+from sklearn.preprocessing import LabelBinarizer
+from sklearn.metrics import classification_report
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.datasets import mnist
+from tensorflow.keras import backend as K
+import matplotlib.pyplot as plt
+import numpy as np
+
+#b. loading dataset
+((X_train, Y_train), (X_test, Y_test)) = mnist.load_data()# Loads the MNIST dataset into training and testing sets.
+X_train = X_train.reshape((X_train.shape[0], 28 * 28 * 1)) # Reshapes training data to a flat array (28x28 pixels to 784).
+X_test = X_test.reshape((X_test.shape[0], 28 * 28 * 1))# Reshapes testing data similar to training data
+X_train = X_train.astype("float32") / 255.0 # Converts training data to float32 and normalizes pixel values to 0-1.
+X_test = X_test.astype("float32") / 255.0# Converts testing data similar to training data.
+
+lb = LabelBinarizer() # Creates a LabelBinarizer object for one-hot encoding.
+Y_train = lb.fit_transform(Y_train) # Fits the binarizer and transforms training labels to one-hot encoded format.
+Y_test = lb.transform(Y_test) # Transforms testing labels using the fitted binarizer. 
+
+#c. define network architecture
+#building the model
+model = Sequential() # Creates a sequential model, which is a linear stack of layers.
+model.add(Dense(128, input_shape=(784,), activation="sigmoid")) # Adds a dense layer with 128 neurons, sigmoid activation, and input shape of 784.
+model.add(Dense(64, activation="sigmoid")) # Adds another dense layer with 64 neurons and sigmoid activation.
+model.add(Dense(10, activation="softmax")) # Adds the output layer with 10 neurons (for 10 digits) and softmax activation.
+#Sigmoid: Squishes input values between 0 and 1, often used for binary decisions.
+#Softmax: Turns numbers into probabilities for multiple categories, ensuring they sum to 1.
+
+#d. train using SGD
+sgd = SGD(0.01) # Creates an SGD optimizer with a learning rate of 0.01.
+epochs=10 # Sets the number of training epochs to 10.
+model.compile(loss="categorical_crossentropy", optimizer=sgd,metrics=["accuracy"]) # Configures the model for training.
+H = model.fit(X_train, Y_train, validation_data=(X_test, Y_test),epochs=epochs, batch_size=128) # Trains the model on the training data.
+#SGD is an optimization algorithm that is used to update the weights of the neural network during training. 
+#The 0.01 value is the learning rate, which controls how much the weights are adjusted in each iteration.
+
+#e. evaluate network
+#making the predictions
+predictions = model.predict(X_test, batch_size=128) # Makes predictions on the test data.
+print(classification_report(Y_test.argmax(axis=1),predictions.argmax(axis=1),target_names=[str(x) for x in lb.classes_])) # Prints a classification report with precision, recall, F1-score, and support for each class.
+
+#f. plot acc and loss
+#plotting the training loss and accuracy
+plt.style.use("ggplot") # Sets the plotting style to "ggplot".
+plt.figure() # Creates a new figure.
+plt.plot(np.arange(0, epochs), H.history["loss"], label="train_loss") # Plots the training loss.
+plt.plot(np.arange(0, epochs), H.history["val_loss"], label="val_loss") # Plots the validation loss.
+plt.plot(np.arange(0, epochs), H.history["accuracy"], label="train_acc") # Plots the training accuracy.
+plt.plot(np.arange(0, epochs), H.history["val_accuracy"], label="val_acc") # Plots the validation accuracy.
+plt.title("Training Loss and Accuracy") # Sets the title of the plot.
+plt.xlabel("Epoch #") # Sets the label for the x-axis.
+plt.ylabel("Loss/Accuracy") # Sets the label for the y-axis.
+plt.legend() # Displays the legend.
+
+

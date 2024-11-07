@@ -1,0 +1,71 @@
+2. FeedForward MNIST {path method}
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+import matplotlib.pyplot as plt
+import numpy as np
+
+train_data_dir = 'Datasets/mnist-jpg/train'
+test_data_dir = 'Datasets/mnist-jpg/test'
+
+# Image data generator for training data used for rescaling pixel values
+train_datagen = ImageDataGenerator(
+rescale=1.0/255  # Rescales the pixel values of the images to the range [0, 1]
+)
+
+# Image data generator for testing data
+test_datagen = ImageDataGenerator(
+rescale=1.0/255  # Rescales the pixel values of the images to the range [0, 1]
+)
+
+# Create data generators
+train_batch_size = 10000  # Sets the batch size for the training data
+train_generator = train_datagen.flow_from_directory(
+    train_data_dir,  # Specifies the directory containing the training data
+    target_size=(28, 28),  # Resizes the images to 28x28 pixels
+    batch_size=train_batch_size,  # Sets the batch size for the training data
+    class_mode='categorical',   # Specifies that the labels should be one-hot encoded
+    color_mode='grayscale',  # Specifies that the images are grayscale
+    shuffle=True,  # Shuffles the training data
+)
+
+# Load test data without labels (class_mode=None)
+test_batch_size = 2000  # Sets the batch size for the test data
+test_generator = test_datagen.flow_from_directory(
+    test_data_dir,  # Specifies the directory containing the test data
+    target_size=(28, 28),  # Resizes the images to 28x28 pixels
+    batch_size=test_batch_size,  # Sets the batch size for the test data
+    class_mode='categorical',  # Specifies that the labels should be one-hot encoded
+    color_mode='grayscale',  # Specifies that the images are grayscale
+    shuffle=True,  # Shuffles the test data
+)
+x_train, y_train = train_generator[0] # Retrieves the first batch of data and labels from the training generator and assigns them to x_train and y_train, respectively.
+x_test, y_test = test_generator[0]
+
+model = keras.Sequential([
+    keras.layers.Flatten(input_shape=(28, 28, 1)), # Flattens the input images into a 1D array.
+    keras.layers.Dense(128, activation="relu"), # Fully connected layer with 128 units and ReLU activation.
+    keras.layers.Dense(10, activation="softmax") # Output layer with 10 units (for 10 classes) and softmax activation for probability distribution.
+])#relu:replaces negative values with zero and keeps positive values unchanged, introducing non-linearity.
+
+model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy']) # Configures the model for training, specifying the optimizer, loss function, and metrics to track.
+history = model.fit(x_train, y_train, epochs=8, validation_data=(x_test, y_test)) # Trains the model on the training data for a specified number of epochs and evaluates it on the validation data.
+#SGD is an optimization algorithm that is used to update the weights of the neural network during training. 
+
+n = 20 
+plt.imshow(x_test[n])
+predicted_value = model.predict(x_test)
+print("Actual Number: ",np.argmax(y_test[n]))
+print("Predicted Number: ", np.argmax(predicted_value[n]))
+
+history = history.history
+history.keys()
+
+plt.plot(history['accuracy'])
+plt.plot(history['val_accuracy'])
+plt.plot(history['loss'])
+plt.plot(history['val_loss'])
+plt.title('Training Loss and accuracy')
+plt.ylabel('accuracy/Loss')
+plt.xlabel('epoch')
+plt.legend(['accuracy', 'val_accuracy','loss','val_loss'])
