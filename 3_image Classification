@@ -1,0 +1,120 @@
+# Importing necessary libraries
+import numpy as np
+import pandas as pd
+import random
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Flatten, Conv2D, Dense, MaxPooling2D
+from tensorflow.keras.optimizers import SGD
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.datasets import mnist
+
+# Load the MNIST dataset (digit images and labels)
+(images, labels), _ = mnist.load_data()
+
+# Set X (images) and y (labels) variables for easy access
+X = images
+y = labels
+
+# Loading the MNIST dataset again and splitting into training and test sets
+(X_train, y_train), (X_test, y_test) = mnist.load_data()
+
+# Checking the shape of training data
+print(X_train.shape)
+
+# Checking the minimum and maximum pixel values of the first image in the training set
+X_train[0].min(), X_train[0].max()
+
+# Normalizing pixel values to range [0, 1]
+X_train = (X_train - 0.0) / (255.0 - 0.0)
+X_test = (X_test - 0.0) / (255.0 - 0.0)
+
+# Checking the normalized values for the first image
+X_train[0].min(), X_train[0].max()  # Should be (0.0, 1.0)
+
+# Function to plot digits from the training set
+def plot_digit(image, digit, plt, i):
+    plt.subplot(4, 5, i + 1)  # Organize in 4 rows and 5 columns
+    plt.imshow(image, cmap=plt.get_cmap('gray'))  # Display image in grayscale
+    plt.title(f"Digit: {digit}")  # Display the digit label as the title
+    plt.xticks([])  # Remove x-axis ticks
+    plt.yticks([])  # Remove y-axis ticks
+
+# Plotting the first 20 images in the training set
+plt.figure(figsize=(16, 10))  # Set figure size
+for i in range(20):
+    plot_digit(X_train[i], y_train[i], plt, i)  # Plot each image with its label
+plt.show()  # Show the plot
+
+# Reshaping the images to be in the form (28, 28, 1) for grayscale images
+X_train = X_train.reshape((X_train.shape + (1,)))  # Add the channel dimension
+X_test = X_test.reshape((X_test.shape + (1,)))  # Add the channel dimension
+
+# Displaying the first 20 labels in the training set
+y_train[0:20]
+
+# Defining the model's architecture using Sequential API
+model = Sequential([
+    Conv2D(32, (3, 3), activation="relu", input_shape=(28, 28, 1)),  # 32 filters, 3x3 kernel, ReLU activation
+    MaxPooling2D((2, 2)),  # MaxPooling with 2x2 window
+    Flatten(),  # Flatten the output to a 1D vector
+    Dense(100, activation="relu"),  # Dense layer with 100 units and ReLU activation
+    Dense(10, activation="softmax")  # Output layer with 10 units for 10 classes, softmax for multi-class classification
+])
+
+# Defining the optimizer with a learning rate of 0.01 and momentum of 0.9
+optimizer = SGD(learning_rate=0.01, momentum=0.9)
+
+# Compiling the model with sparse categorical cross-entropy loss and accuracy as the metric
+model.compile(
+    optimizer=optimizer,
+    loss="sparse_categorical_crossentropy",  # Suitable for integer labels
+    metrics=["accuracy"]
+)
+
+# Printing the model summary to see the architecture and parameters
+model.summary()
+
+# Splitting the data into training and validation sets (80% train, 20% validation)
+X_train, X_val, y_train, y_val = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Training the model using the training set and validating on the validation set
+Model_log = model.fit(
+    X_train,  # Training data
+    y_train,  # Training labels
+    epochs=10,  # Number of epochs
+    batch_size=15,  # Batch size for training
+    verbose=1,  # Show training progress
+    validation_data=(X_val, y_val)  # Validation data
+)
+
+# Plotting random test images with predictions from the model
+plt.figure(figsize=(16, 10))
+for i in range(20):
+    image = random.choice(X_test).squeeze()  # Randomly pick an image from the test set
+    digit = np.argmax(model.predict(image.reshape((1, 28, 28, 1)))[0], axis=-1)  # Predict the digit
+    plot_digit(image, digit, plt, i)  # Plot the predicted digit
+plt.show()
+
+# Getting predictions on the test set
+predictions = np.argmax(model.predict(X_test), axis=-1)
+
+# Calculating and printing accuracy score on test data
+accuracy_score(y_test, predictions)
+
+# Displaying a random test image
+n = random.randint(0, 9999)  # Random index
+plt.imshow(X_test[n])  # Display the test image
+plt.show()
+
+# Making a prediction for the selected image
+predicted_value = model.predict(X_test)  # Predict the entire test set
+print("Handwritten number in the image is = %d" % np.argmax(predicted_value[n]))  # Display the predicted digit
+
+# Evaluating the model on the test set and printing the test loss and accuracy
+score = model.evaluate(X_test, y_test, verbose=0)
+print('Test loss:', score[0])  # Test loss
+print('Test accuracy:', score[1])  # Test accuracy
